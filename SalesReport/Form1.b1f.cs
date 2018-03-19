@@ -11,7 +11,7 @@ namespace SalesReport
         public Form1()
         {
         }
-
+        private Dictionary<string, string> LowGroup = new Dictionary<string, string>() { };
         /// <summary>
         /// Initialize components. Called by framework after form created.
         /// </summary>
@@ -31,19 +31,32 @@ namespace SalesReport
             this.StaticText5 = ((SAPbouiCOM.StaticText)(this.GetItem("Item_15").Specific));
             this.Button0 = ((SAPbouiCOM.Button)(this.GetItem("Item_16").Specific));
             this.Button0.ClickAfter += new SAPbouiCOM._IButtonEvents_ClickAfterEventHandler(this.Button0_ClickAfter);
-            this.Button0.ClickBefore += new SAPbouiCOM._IButtonEvents_ClickBeforeEventHandler(Button0_ClickBefore);
+            this.Button0.ClickBefore += new SAPbouiCOM._IButtonEvents_ClickBeforeEventHandler(this.Button0_ClickBefore);
             this.StaticText6 = ((SAPbouiCOM.StaticText)(this.GetItem("Item_2").Specific));
             this.ComboBox0 = ((SAPbouiCOM.ComboBox)(this.GetItem("Item_3").Specific));
+            this.ComboBox0.ComboSelectAfter += ComboBox0_ComboSelectAfter;
             this.StaticText7 = ((SAPbouiCOM.StaticText)(this.GetItem("Item_4").Specific));
             this.ComboBox1 = ((SAPbouiCOM.ComboBox)(this.GetItem("Item_5").Specific));
+            this.ComboBox1.Item.Visible = false;
+            for (int i = 0; i < ComboBox1.ValidValues.Count; i++)
+
+                LowGroup.Add(ComboBox1.ValidValues.Item(i).Value, ComboBox1.ValidValues.Item(i).Description);
             this.StaticText8 = ((SAPbouiCOM.StaticText)(this.GetItem("Item_17").Specific));
             this.StaticText8.Item.Visible = false;
             this.ComboBox2 = ((SAPbouiCOM.ComboBox)(this.GetItem("Item_18").Specific));
             this.ComboBox2.Item.Visible = false;
             this.LinkedButton0 = ((SAPbouiCOM.LinkedButton)(this.GetItem("Item_19").Specific));
             this.LinkedButton1 = ((SAPbouiCOM.LinkedButton)(this.GetItem("Item_20").Specific));
+            this.ComboBox3 = ((SAPbouiCOM.ComboBox)(this.GetItem("Item_21").Specific));
             this.OnCustomInitialize();
 
+        }
+
+        private void ComboBox0_ComboSelectAfter(object sboObject, SAPbouiCOM.SBOItemEventArg pVal)
+        {
+
+            FillLowGrop(ComboBox0, ComboBox3);
+            ComboBox3.Select(0, SAPbouiCOM.BoSearchKey.psk_Index);
         }
 
         void Button0_ClickBefore(object sboObject, SAPbouiCOM.SBOItemEventArg pVal, out bool BubbleEvent)
@@ -54,11 +67,12 @@ namespace SalesReport
                 Application.SBO_Application.StatusBar.SetText("Выберите группу товаров", SAPbouiCOM.BoMessageTime.bmt_Medium, SAPbouiCOM.BoStatusBarMessageType.smt_Error);
                 BubbleEvent = false;
             }
-            if (ComboBox1.Value.Trim() == "")
+            if (ComboBox3.Value.Trim() == "")
             {
                 Application.SBO_Application.StatusBar.SetText("Выберите подгруппу товаров", SAPbouiCOM.BoMessageTime.bmt_Medium, SAPbouiCOM.BoStatusBarMessageType.smt_Error);
                 BubbleEvent = false;
             }
+
         }
 
         /// <summary>
@@ -67,7 +81,28 @@ namespace SalesReport
         public override void OnInitializeFormEvents()
         {
         }
+        private void FillLowGrop(SAPbouiCOM.ComboBox oComboBox0, SAPbouiCOM.ComboBox oComboBox2)
+        {
+            oForm = Application.SBO_Application.Forms.ActiveForm;
+            oForm.Freeze(true);
+            oRecordset = (SAPbobsCOM.Recordset)Program.oCopmany.GetBusinessObject(SAPbobsCOM.BoObjectTypes.BoRecordset);
+            while (oComboBox2.ValidValues.Count != 0)
 
+                //oComboBox2.ValidValues.Remove("1", SAPbouiCOM.BoSearchKey.psk_Index);
+                oComboBox2.ValidValues.Remove(oComboBox2.ValidValues.Count - 1, SAPbouiCOM.BoSearchKey.psk_Index);
+            oRecordset.DoQuery(String.Format("Select distinct Cast(U_collection as decimal(18)) from OITM where ItmsGrpCod = '{0}' and U_collection IS NOT NULL order by Cast(U_collection as decimal(18)) asc", oComboBox0.Value.Trim()));
+            oRecordset.MoveFirst();
+            for (int i = 1; i <= oRecordset.RecordCount; i++)
+            {
+                var s = oRecordset.Fields.Item(0).Value.ToString();
+                oComboBox2.ValidValues.Add(oRecordset.Fields.Item(0).Value.ToString(), LowGroup[oRecordset.Fields.Item(0).Value.ToString()]);
+                oRecordset.MoveNext();
+            }
+            oForm.Freeze(false);
+            oForm.Update();
+
+
+        }
         private SAPbouiCOM.EditText EditText0;
 
         private void OnCustomInitialize()
@@ -80,7 +115,7 @@ namespace SalesReport
             EditText9.Value = "20171201";
             CombooooooooBoxNoMatrix(ComboBox0, "Select ItmsGrpCod, ItmsGrpNam from OITB", "ItmsGrpCod", "ItmsGrpNam", "DT_0");
             CombooooooooBoxNoMatrix(ComboBox2, "Select WhsCode, WhsName from OWHS", "WhsCode", "WhsName", "DT_1");
-            
+
         }
 
         private SAPbouiCOM.EditText EditText1;
@@ -114,7 +149,7 @@ namespace SalesReport
             dateEnd2 = EditText7.Value;
             dateEnd3 = EditText9.Value;
             group = ComboBox0.Value.Trim();
-            lowGroup = ComboBox1.Value.Trim();
+            lowGroup = ComboBox3.Value.Trim();
             warehouse = ComboBox2.Value.Trim();
             Form2 oForm = new Form2();
             oForm.Show();
@@ -136,14 +171,8 @@ namespace SalesReport
             oForm = Application.SBO_Application.Forms.GetForm("SalesReport.Form1", 0);
             oForm.Freeze(true);
 
-            if (oComboBox.ValidValues.Count != 0)
-            {
                 while (oComboBox.ValidValues.Count != 0)
-                {
                     oComboBox.ValidValues.Remove(oComboBox.ValidValues.Count - 1, SAPbouiCOM.BoSearchKey.psk_Index);
-                }
-            }
-
 
             oDataTable = oForm.DataSources.DataTables.Item(DataTableID);
             oDataTable.ExecuteQuery(query);
@@ -156,5 +185,8 @@ namespace SalesReport
             oForm.Update();
 
         }
+
+        private SAPbouiCOM.ComboBox ComboBox3;
+        private SAPbobsCOM.Recordset oRecordset;
     }
 }

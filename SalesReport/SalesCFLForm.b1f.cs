@@ -19,6 +19,7 @@ namespace SalesReport
         private int selectedRow = -1;
         private List<string> columnNames;
         private Dictionary<string, double> CurrectMoneyCourse = new Dictionary<string, double>() { { "UAH", 1 } };
+        private Dictionary<string, string> LowGroup = new Dictionary<string, string>() { };
         private bool IsOpen = false;
 
         public SalesCFLForm(SAPbouiCOM.Form af, string date)
@@ -42,9 +43,10 @@ namespace SalesReport
         public override void OnInitializeFormEvents()
         {
             this.ResizeAfter += new ResizeAfterHandler(this.Form_ResizeAfter);
-
+            
         }
 
+       
         private void OnCustomInitialize()
         {
             oRecordset = (SAPbobsCOM.Recordset)Program.oCopmany.GetBusinessObject(BoObjectTypes.BoRecordset);
@@ -55,6 +57,7 @@ namespace SalesReport
             this.edit0 = ((SAPbouiCOM.EditText)(this.GetItem("Item_8").Specific));
             this.edit1 = ((SAPbouiCOM.EditText)(this.GetItem("Item_9").Specific));
             this.Grid1 = ((SAPbouiCOM.Grid)(this.GetItem("Item_0").Specific));
+            this.Grid1.DoubleClickAfter += Grid1_DoubleClickAfter;
             this.Grid1.LostFocusAfter += Grid1_LostFocusAfter;
             this.Button1 = ((SAPbouiCOM.Button)(this.GetItem("Item_1").Specific));
             this.Button1.ClickAfter += new SAPbouiCOM._IButtonEvents_ClickAfterEventHandler(this.Button1_ClickAfter);
@@ -63,13 +66,20 @@ namespace SalesReport
             this.Grid0.DoubleClickBefore += Grid0_DoubleClickBefore;
             this.Grid0.GotFocusAfter += new SAPbouiCOM._IGridEvents_GotFocusAfterEventHandler(this.Grid0_GotFocusAfter);
             this.Grid0.LostFocusAfter += Grid0_LostFocusAfter;
-
+            this.ComboBox2 = ((SAPbouiCOM.ComboBox)(this.GetItem("Item_10").Specific));
             this.ComboBox0 = ((SAPbouiCOM.ComboBox)(this.GetItem("Item_3").Specific));
             this.ComboBox0.ComboSelectAfter += new SAPbouiCOM._IComboBoxEvents_ComboSelectAfterEventHandler(this.ComboBox0_ComboSelectAfter);
             this.StaticText0 = ((SAPbouiCOM.StaticText)(this.GetItem("Item_4").Specific));
 
             this.ComboBox1 = ((SAPbouiCOM.ComboBox)(this.GetItem("Item_6").Specific));
-            this.ComboBox1.ComboSelectAfter += new SAPbouiCOM._IComboBoxEvents_ComboSelectAfterEventHandler(this.ComboBox0_ComboSelectAfter);
+            ComboBox1.Item.Visible = false;
+
+            for (int i = 0; i < ComboBox1.ValidValues.Count; i++)
+
+                LowGroup.Add(ComboBox1.ValidValues.Item(i).Value, ComboBox1.ValidValues.Item(i).Description);
+
+            Application.SBO_Application.Forms.ActiveForm.Menu.Add("DeleteRow", "Удалить строку", SAPbouiCOM.BoMenuType.mt_STRING, 0);
+            this.ComboBox2.ComboSelectAfter += new SAPbouiCOM._IComboBoxEvents_ComboSelectAfterEventHandler(this.ComboBox0_ComboSelectAfter);
             this.StaticText1 = ((SAPbouiCOM.StaticText)(this.GetItem("Item_7").Specific));
 
             oRecordset.DoQuery("SELECT ItmsGrpCod, ItmsGrpNam FROM OITB");
@@ -81,19 +91,20 @@ namespace SalesReport
             }
             columnNames = new List<string>();
             ComboBox0.Select(selected);
+            FillLowGrop(ComboBox0, ComboBox2);
 
             oRecordset.DoQuery("SELECT DISTINCT U_collection FROM OITM");
-            selected = oRecordset.Fields.Item("U_collection").Value.ToString();
+
             while (!oRecordset.EoF)
             {
                 //ComboBox1.ValidValues.Add(oRecordset.Fields.Item("U_collection").Value.ToString(), "");
                 oRecordset.MoveNext();
             }
-            ComboBox1.Select(selected);
+            ComboBox2.Select(0, SAPbouiCOM.BoSearchKey.psk_Index);
 
             oRecordset.DoQuery(string.Format("SELECT * FROM ORTT where RateDate = '{0}'", Продажа.EditTextData.Value));
             oRecordset.MoveFirst();
-            for (int i = 1; i < oRecordset.Fields.Count; i++)
+            for (int i = 0; i < oRecordset.RecordCount; i++)
             {
                 CurrectMoneyCourse.Add(oRecordset.Fields.Item("Currency").Value.ToString(), double.Parse(oRecordset.Fields.Item("Rate").Value.ToString()));
                 oRecordset.MoveNext();
@@ -101,6 +112,12 @@ namespace SalesReport
 
 
 
+        }
+
+        private void Grid1_DoubleClickAfter(object sboObject, SAPbouiCOM.SBOItemEventArg pVal)
+        {
+            Grid1.DataTable.Rows.Remove(pVal.Row);
+           
         }
 
         private void Grid0_LostFocusAfter(object sboObject, SAPbouiCOM.SBOItemEventArg pVal)
@@ -157,21 +174,28 @@ namespace SalesReport
 
         private void ComboBox0_ComboSelectAfter(object sboObject, SAPbouiCOM.SBOItemEventArg pVal)
         {
-            if (ComboBox0.Selected == null || ComboBox1.Selected == null) return;
+            if (ComboBox0.Selected == null || ComboBox2.Selected == null) return;
             oRecordset.DoQuery(string.Format("SELECT ItmsGrpNam FROM OITB WHERE ItmsGrpCod = '{0}'", ComboBox0.Selected.Value.ToString()));
             edit0.Value = oRecordset.Fields.Item(0).Value.ToString();
-            edit1.Value = ComboBox1.Selected.Description;
-            FillMatrix();
+            edit1.Value = ComboBox2.Selected.Description;
 
-            setGridWidth(Grid0);
+            if (pVal.ItemUID == "Item_3")
+            {
+                FillLowGrop(ComboBox0, ComboBox2);
+                ComboBox2.Select(0, SAPbouiCOM.BoSearchKey.psk_Index);
+            }
+
+            if(pVal.ItemUID == "Item_10") FillMatrix();
+
+            
             setGridWidth(Grid1);
         }
 
         private void setGridWidth(SAPbouiCOM.Grid grid)
         {
             Application.SBO_Application.Forms.ActiveForm.Freeze(true);
-            grid.Columns.Item(0).Width = 80;
-            grid.Columns.Item(1).Width = 150;
+            //grid.Columns.Item(0).Width = 80;
+            grid.Columns.Item(1).Width = 220;
             for (int i = 2; i < grid.Columns.Count; i++)
             {
                 grid.Columns.Item(i).Width = 100;
@@ -185,6 +209,25 @@ namespace SalesReport
         {
             selectedRow = pVal.Row;
         }
+        private void FillLowGrop(SAPbouiCOM.ComboBox oComboBox0, SAPbouiCOM.ComboBox oComboBox2)
+        {
+            Application.SBO_Application.Forms.ActiveForm.Freeze(true);
+            while (oComboBox2.ValidValues.Count != 0)
+
+                //oComboBox2.ValidValues.Remove("1", SAPbouiCOM.BoSearchKey.psk_Index);
+                oComboBox2.ValidValues.Remove(oComboBox2.ValidValues.Count - 1, SAPbouiCOM.BoSearchKey.psk_Index);
+            oRecordset.DoQuery(String.Format("Select distinct Cast(U_collection as decimal(18)) from OITM where ItmsGrpCod = '{0}' and U_collection IS NOT NULL order by Cast(U_collection as decimal(18)) asc", oComboBox0.Value.Trim()));
+            oRecordset.MoveFirst();
+            for (int i = 1; i <= oRecordset.RecordCount; i++)
+            {
+                var s = oRecordset.Fields.Item(0).Value.ToString();
+                oComboBox2.ValidValues.Add(oRecordset.Fields.Item(0).Value.ToString(), LowGroup[oRecordset.Fields.Item(0).Value.ToString()]);
+                oRecordset.MoveNext();
+            }
+            Application.SBO_Application.Forms.ActiveForm.Freeze(false);
+            Application.SBO_Application.Forms.ActiveForm.Update();
+
+        }
 
         private void FillMatrix()
         {
@@ -196,7 +239,7 @@ namespace SalesReport
 ((SELECT Price FROM ITM1 WHERE ItemCode = T0.ItemCode AND PriceList = '2')
 - ((SELECT Price FROM ITM1 WHERE ItemCode = T0.ItemCode AND PriceList = '2') / 100)
 * (SELECT Discount FROM SPP2 WHERE ItemCode = T0.ItemCode)) AS 'ЦенаОпт',
-(SELECT Format(sum(OnHand),'N2') from OITW where ItemCode = T0.ItemCode) AS 'На складе'"
+(SELECT Format(sum(OnHand),'N2') from OITW where ItemCode = T0.ItemCode) AS 'На складе', (SELECT WhsName from OWHS where T0.DfltWH = WhsCode) as 'Склад по умолчанию'"
 );
             columnNames = new List<string>();
             columnNames.Add("Код товара");
@@ -206,7 +249,8 @@ namespace SalesReport
             columnNames.Add("Скидка, %");
             columnNames.Add("ЦенаОпт");
             columnNames.Add("На складе");
-            oRecordset.DoQuery("SELECT WhsCode, WhsName FROM OWHS where WhsName =N'4001-нижний' or WhsName =N'4001-02 верх'");
+            columnNames.Add("Склад по умолчанию");
+            oRecordset.DoQuery("SELECT WhsCode, WhsName FROM OWHS where WhsName =N'4001-нижний' or WhsName =N'4001-02 верх' or WhsName =N'4002-нижний'");
 
 
             while (!oRecordset.EoF)
@@ -215,12 +259,18 @@ namespace SalesReport
                 columnNames.Add(oRecordset.Fields.Item("WhsName").Value.ToString().Replace(' ', '_'));
                 oRecordset.MoveNext();
             }
-            ourQuery.Append(string.Format(" FROM OITM T0 WHERE ItmsGrpCod = {0} AND U_collection = {1}", ComboBox0.Selected.Value.ToString(), ComboBox1.Selected.Value.ToString()));
+            ourQuery.Append(string.Format(" FROM OITM T0 WHERE ItmsGrpCod = {0} AND U_collection = {1}", ComboBox0.Value.ToString(), ComboBox2.Value.ToString()));
 
             string ggggg = ourQuery.ToString();
-
-            Grid0.DataTable.ExecuteQuery(ourQuery.ToString());
-
+            try
+            {
+                Grid0.DataTable.ExecuteQuery(ourQuery.ToString());
+            }
+            catch (Exception ex)
+            {
+                string s = ex.Message;
+            }
+            //setGridWidth(Grid0);
             this.Grid0.Columns.Item("Название товара").Width = 210;
             SAPbouiCOM.EditTextColumn ItemCodeLinkedButt = (SAPbouiCOM.EditTextColumn)(Grid0.Columns.Item("Код товара"));
 
@@ -235,20 +285,6 @@ namespace SalesReport
             {
                 if (i != 3) Grid1.Columns.Item(i).Editable = false;
             }
-            for (int j = 0; j < Grid0.Rows.Count; j++)
-            {
-
-
-                for (int i = 0; i < columnNames.Count; i++)
-                {
-                   
-                    //Grid0.DataTable.SetValue(columnNames[i], j, 1);
-                   
-                }
-            }
-
-
-
         }
 
         private void initGrid1(StringBuilder ourQuery)
@@ -257,6 +293,7 @@ namespace SalesReport
             Grid1.DataTable.ExecuteQuery(ourQuery.ToString());
             Grid1.Columns.Item("Название товара").Width = 210;
             Grid1.Columns.Item("Количество").Editable = true;
+            setGridWidth(Grid0);
         }
 
         private SAPbouiCOM.Grid Grid0;
@@ -303,13 +340,13 @@ namespace SalesReport
                         }
                         catch (Exception)
                         {
-                            Application.SBO_Application.MessageBox("Hasn't Currency course into ITM1 with itemcode="+ itmcode +" and price ="+ price);
+                            Application.SBO_Application.MessageBox("Hasn't Currency course into ITM1 with itemcode=" + itmcode + " and price =" + price);
                         }
                         double curPrice;
-                        double.TryParse(Grid1.DataTable.GetValue(columnNames[2], i).ToString().Replace('.',','),out curPrice);
+                        double.TryParse(Grid1.DataTable.GetValue(columnNames[2], i).ToString().Replace('.', ','), out curPrice);
                         var a = (curPrice * cursVal) / cursValDoc;
                         Debug.Print(a.ToString());
-                        ((SAPbouiCOM.EditText)oMatrix.Columns.Item("14").Cells.Item(StratRow + i).Specific).Value = a.ToString();//price item
+                        ((SAPbouiCOM.EditText)oMatrix.Columns.Item("14").Cells.Item(StratRow + i).Specific).Value = a.ToString("0,00");//price item
 
                     }
                 }
@@ -369,5 +406,6 @@ namespace SalesReport
 
         private SAPbouiCOM.ComboBox ComboBox1;
         private SAPbouiCOM.StaticText StaticText1;
+        private SAPbouiCOM.ComboBox ComboBox2;
     }
 }

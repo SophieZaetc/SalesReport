@@ -36,28 +36,36 @@ namespace SalesReport
             this.OnCustomInitialize();
 
         }
-
+       
         void Grid0_LostFocusAfter(object sboObject, SAPbouiCOM.SBOItemEventArg pVal)
         {
             if (pVal.ColUID == "Заказ")
             {
                 oForm = Application.SBO_Application.Forms.ActiveForm;
                 oForm.Freeze(true);
-                double volume = Double.Parse(Grid0.DataTable.GetValue("Обьем", pVal.Row).ToString().Replace(".", ","));
-                double weight = Double.Parse(Grid0.DataTable.GetValue("Вес", pVal.Row).ToString().Replace(".", ","));
-                Grid0.DataTable.SetValue("Общий вес", pVal.Row, (weight * Double.Parse(Grid0.DataTable.GetValue(pVal.ColUID, pVal.Row).ToString().Replace(".", ","))).ToString("0.00"));
-                Grid0.DataTable.SetValue("Общий обьем", pVal.Row, (volume * Double.Parse(Grid0.DataTable.GetValue(pVal.ColUID, pVal.Row).ToString().Replace(".", ","))).ToString("0.00"));
-                double s1 = 0.00;
-                double s2 = 0.00;              
-                for (int i = 0; i < Grid0.Rows.Count-1; i++)
+                Double.TryParse(Grid0.DataTable.GetValue("Заказ", pVal.Row).ToString().Replace(".", ","), out x);
+
+                if (x != 0)
                 {
-                    s1 += Double.Parse(Grid0.DataTable.GetValue("Общий вес", i).ToString().Replace("'", "").Replace(".", ","));
-                    s2 += Double.Parse(Grid0.DataTable.GetValue("Общий обьем", i).ToString().Replace("'", "").Replace(".", ","));                   
+                    double volume = Grid0.DataTable.GetValue("Обьем", pVal.Row).ToString().Replace(".", ",") == "" ? 0.00 : Double.Parse(Grid0.DataTable.GetValue("Обьем", pVal.Row).ToString().Replace(".", ","));
+                    double weight = Grid0.DataTable.GetValue("Вес", pVal.Row).ToString().Replace(".", ",") == "" ? 0.00 : Double.Parse(Grid0.DataTable.GetValue("Вес", pVal.Row).ToString().Replace(".", ","));
+                    if (Grid0.DataTable.GetValue(pVal.ColUID, pVal.Row).ToString() != "0.00")
+                    {
+                        Grid0.DataTable.SetValue("Общий вес", pVal.Row, (weight * Double.Parse(Grid0.DataTable.GetValue(pVal.ColUID, pVal.Row).ToString().Replace(".", ","))).ToString("0.00"));
+                        Grid0.DataTable.SetValue("Общий обьем", pVal.Row, (volume * Double.Parse(Grid0.DataTable.GetValue(pVal.ColUID, pVal.Row).ToString().Replace(".", ","))).ToString("0.00"));
+                        double s1 = 0.00;
+                        double s2 = 0.00;
+                        for (int i = 0; i < Grid0.Rows.Count - 1; i++)
+                        {
+                            s1 += Grid0.DataTable.GetValue("Общий вес", i).ToString().Replace(".", ",") == "" ? 0.00 : Double.Parse(Grid0.DataTable.GetValue("Общий вес", i).ToString().Replace(".", ","));
+                            s2 += Grid0.DataTable.GetValue("Общий обьем", i).ToString().Replace(".", ",") == "" ? 0.00 : Double.Parse(Grid0.DataTable.GetValue("Общий обьем", i).ToString().Replace(".", ","));
+                        }
+                        Grid0.DataTable.SetValue("Общий вес", Grid0.DataTable.Rows.Count - 1, s1.ToString("0.00"));
+                        Grid0.DataTable.SetValue("Общий обьем", Grid0.DataTable.Rows.Count - 1, s2.ToString("0.00"));
+                        EditText3.Value = s1.ToString("0.00");
+                        EditText4.Value = s2.ToString("0.00");
+                    }
                 }
-                Grid0.DataTable.SetValue("Общий вес", Grid0.DataTable.Rows.Count - 1, s1.ToString("0.00"));
-                Grid0.DataTable.SetValue("Общий обьем", Grid0.DataTable.Rows.Count - 1, s2.ToString("0.00"));
-                EditText3.Value = s1.ToString("0.00");
-                EditText4.Value = s2.ToString("0.00");
                 oForm.Freeze(false);
                 oForm.Update();
             }
@@ -158,15 +166,18 @@ LEFT JOIN @Prod1 ON OITM.ItemCode = [@Prod1].ItemCode LEFT JOIN @Prod2 ON OITM.I
             Grid0.DataTable.SetValue("3", Grid0.DataTable.Rows.Count - 1, s3.ToString("0.00"));
             EditText0.Value = s1.ToString("0.00");
             EditText1.Value = s2.ToString("0.00");
-            EditText1.Value = s3.ToString("0.00");
+            EditText2.Value = s3.ToString("0.00");
         }
 
         private SAPbouiCOM.Button Button0;
         private SAPbouiCOM.EditTextColumn oGridColumn;
         private SAPbouiCOM.Button Button1;
         private SAPbouiCOM.Form oForm;
+        double x = 0;
+        private bool s = false;
         private void Button1_ClickAfter(object sboObject, SAPbouiCOM.SBOItemEventArg pVal)
         {
+           
             if(Заказ_на_закупку___разделение.formType != null)
             oForm = Application.SBO_Application.Forms.GetFormByTypeAndCount(142, Заказ_на_закупку___разделение.formCount);
             else
@@ -175,15 +186,20 @@ LEFT JOIN @Prod1 ON OITM.ItemCode = [@Prod1].ItemCode LEFT JOIN @Prod2 ON OITM.I
             
             for (int i = 0; i < Grid0.Rows.Count-1; i++)
             {
-                
-                if (Grid0.DataTable.GetValue("Заказ", i).ToString() != "0.00")
+                Double.TryParse(Grid0.DataTable.GetValue("Заказ", i).ToString().Replace(".", ","), out x);
+                if (x != 0)
                 {
+                    s = true;
                     ((SAPbouiCOM.EditText)oMatrix.Columns.Item("1").Cells.Item(oMatrix.RowCount).Specific).Value = Grid0.DataTable.GetValue("Код товара", i).ToString();
-                    ((SAPbouiCOM.EditText)oMatrix.Columns.Item("11").Cells.Item(oMatrix.RowCount -1).Specific).Value = Grid0.DataTable.GetValue("Заказ", i).ToString().Replace(".", ",");
-                    ((SAPbouiCOM.EditText)oMatrix.Columns.Item("56").Cells.Item(oMatrix.RowCount - 1).Specific).Value = Grid0.DataTable.GetValue("Общий обьем", i).ToString().Replace(",", ".");
-                    ((SAPbouiCOM.EditText)oMatrix.Columns.Item("58").Cells.Item(oMatrix.RowCount - 1).Specific).Value = Grid0.DataTable.GetValue("Общий вес", i).ToString();
+                    ((SAPbouiCOM.EditText)oMatrix.Columns.Item("11").Cells.Item(oMatrix.RowCount -1).Specific).Value = Grid0.DataTable.GetValue("Заказ", i).ToString();
+                    ((SAPbouiCOM.EditText)oMatrix.Columns.Item("56").Cells.Item(oMatrix.RowCount - 1).Specific).Value = Grid0.DataTable.GetValue("Общий обьем", i).ToString().Replace(",", ".") != "0.00" ? Grid0.DataTable.GetValue("Общий обьем", i).ToString().Replace(",", ".") : "";
+                    ((SAPbouiCOM.EditText)oMatrix.Columns.Item("58").Cells.Item(oMatrix.RowCount - 1).Specific).Value = Grid0.DataTable.GetValue("Общий вес", i).ToString() != "0.00" ? Grid0.DataTable.GetValue("Общий вес", i).ToString() : "";
                 }
+               
+                
             }
+            if (!s)
+                Application.SBO_Application.MessageBox("Не выбрано количество для заказа!", 1, "Ok");
             oForm.Select();
             oForm.Items.Item("Item_4").Click();
         }
